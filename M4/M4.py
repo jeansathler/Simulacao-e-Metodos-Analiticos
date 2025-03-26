@@ -4,7 +4,7 @@ import random
 a = 1664525
 c = 1013904223
 M = 2**32
-previous = random.randint(0, M-1)  # Seed inicial aleatória
+previous = random.randint(0, M-1)
 
 def NextRandom():
     global previous
@@ -16,17 +16,17 @@ count = 100000
 K = 5  # Capacidade máxima da fila
 
 def simular_fila(servidores):
-    global TempoGlobal  # Correção do erro
-    TempoGlobal = 2.0  # Reinicia o tempo global para cada simulação
+    global TempoGloba
+    TempoGlobal = 2.0  
     fila = 0
-    servidores_ocupados = 0  # Quantos servidores estão ocupados
+    servidores_ocupados = 0
     tempos = [0] * (K + 1)
     perdas = 0
-    eventos = count  # Número total de eventos
+    eventos = count 
 
     def CHEGADA():
-        global TempoGlobal  # Correção do erro
-        nonlocal fila, perdas  # Remove `TempoGlobal` do nonlocal
+        global TempoGlobal 
+        nonlocal fila, perdas  
         if fila < K:
             fila += 1
         else:
@@ -34,7 +34,7 @@ def simular_fila(servidores):
         TempoGlobal += 2 + NextRandom() * 3  # Chegadas entre 2 e 5
 
     def SAIDA():
-        global TempoGlobal  # Correção do erro
+        global TempoGlobal  
         nonlocal fila, servidores_ocupados
         if fila > 0 and servidores_ocupados < servidores:
             fila -= 1
@@ -45,8 +45,7 @@ def simular_fila(servidores):
 
     def NextEvent():
         return "chegada" if NextRandom() < 0.5 else "saida"
-
-    # Loop principal da simulação
+    
     while eventos > 0:
         evento = NextEvent()
         if evento == "chegada":
