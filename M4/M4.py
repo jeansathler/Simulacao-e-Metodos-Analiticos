@@ -46,6 +46,7 @@ def simular_fila(servidores):
     def NextEvent():
         return "chegada" if NextRandom() < 0.5 else "saida"
 
+
     while eventos > 0:
         evento = NextEvent()
         if evento == "chegada":
