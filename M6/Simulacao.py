@@ -97,9 +97,8 @@ class Fila:
     def status(self):
         print("Distribuição de capacidade:")
         for i in range(len(self.arrayCapacidade)):
-            print(i, ": ", self.arrayCapacidade[i]/self.Escalonador.tempo, " | Tempo: ", self.arrayCapacidade[i])
+            print(f"{i}: {self.arrayCapacidade[i]/self.Escalonador.tempo:.1%} | Tempo: {self.arrayCapacidade[i]}")
         print("Tempo total: ", self.Escalonador.tempo)
-        print("Perdas: ", self.loss)
 
 class Escalonador:
     
