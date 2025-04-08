@@ -15,6 +15,18 @@ def NextRandom():
 count = 100000
 
 class Evento:
+    """
+    Representa um evento em um sistema de simulação.
+    Atributos:
+        tipo (str): O tipo do evento (por exemplo, chegada, partida, etc.).
+        tempo (float): O tempo em que o evento ocorre.
+        filaOrigem (optional): A fila de origem associada ao evento, se aplicável.
+        filaDestino (optional): A fila de destino associada ao evento, se aplicável.
+    Métodos:
+        toString(): Retorna uma representação em string do evento, incluindo
+                    seu tipo, tempo, fila de origem e fila de destino.
+    """
+    
     
     def __init__(self, tipo, tempo, filaOrigem=None, filaDestino=None):
         self.tipo = tipo
@@ -28,6 +40,37 @@ class Evento:
         return f"Evento: {self.tipo} | Tempo: {self.tempo} | Fila Origem: {self.filaOrigem.toString() if self.filaOrigem != None else "None"} | Fila Destino: {self.filaDestino.toString() if self.filaDestino != None else "None"}"
 
 class Fila:
+    """
+    Classe que representa uma fila de atendimento com capacidade limitada e múltiplos servidores.
+    Atributos:
+        server (int): Número de servidores disponíveis na fila.
+        capacidade (int): Capacidade máxima da fila (número máximo de clientes que podem estar na fila ao mesmo tempo).
+        minArrival (float): Tempo mínimo entre chegadas de clientes (opcional).
+        maxArrival (float): Tempo máximo entre chegadas de clientes (opcional).
+        minService (float): Tempo mínimo de atendimento por servidor.
+        maxService (float): Tempo máximo de atendimento por servidor.
+        customer (int): Número atual de clientes na fila.
+        arrayCapacidade (list): Lista que armazena o tempo acumulado em que a fila esteve em cada estado de ocupação.
+        loss (int): Número de clientes perdidos devido à fila estar cheia.
+        time (float): Tempo atual da simulação.
+        Escalonador (object): Objeto responsável por gerenciar os eventos da simulação.
+        filaOrigem (Fila): Referência para a fila de origem (opcional, padrão é a própria fila).
+        filaDestino (Fila): Referência para a fila de destino (opcional).
+    Métodos:
+        __init__(server, capacidade, minService, maxService, Escalonador, filaOrigem=None, filaDestino=None, minArrival=None, maxArrival=None):
+            Inicializa uma nova instância da classe Fila.
+        chegada(arrival):
+            Processa a chegada de um cliente na fila. Adiciona eventos de chegada e, se aplicável, de passagem.
+        passagem(arrival, filaDestino):
+            Processa a passagem de um cliente para outra fila. Atualiza os estados das filas de origem e destino.
+        saida(arrival):
+            Processa a saída de um cliente da fila. Atualiza o estado da fila e agenda novos eventos de saída, se necessário.
+        toString():
+            Retorna uma string representando o estado atual da fila.
+        status():
+            Exibe a distribuição de ocupação da fila e o tempo total da simulação.
+    """
+
     
     def __init__(self, server, capacidade, minService, maxService, Escalonador, filaOrigem=None, filaDestino=None, minArrival=None, maxArrival=None):
         self.server = int(server)
@@ -101,6 +144,30 @@ class Fila:
         print("Tempo total: ", self.Escalonador.tempo)
 
 class Escalonador:
+    """
+    Classe que representa um escalonador para gerenciar eventos e filas em uma simulação.
+    Atributos:
+        eventos (list): Lista de eventos a serem executados pelo escalonador.
+        tempo (int): O tempo atual na simulação.
+        filas (list): Lista de filas gerenciadas pelo escalonador.
+    Métodos:
+        __init__():
+            Inicializa o escalonador com listas de eventos e filas vazias, e define o tempo atual como 0.
+        add_fila(fila):
+            Adiciona uma fila ao escalonador.
+            Args:
+                fila: A fila a ser adicionada.
+        add_evento(evento):
+            Adiciona um evento ao escalonador.
+            Args:
+                evento: O evento a ser adicionado.
+        execute_event():
+            Executa o próximo evento no escalonador com base no evento de menor tempo.
+            Atualiza o tempo da simulação e processa o evento com base no seu tipo ('chegada', 'passagem' ou 'saida').
+            Retorna:
+                None se não houver eventos para executar.
+    """
+
     
     def __init__(self):
         self.eventos = []
