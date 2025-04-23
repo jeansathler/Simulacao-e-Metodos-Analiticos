@@ -110,7 +110,7 @@ class Simulador:
         self.gerar_resultado()
 
     def gerar_resultado(self):
-        with open("C:\\Users\\jeancarlo.gomes\\OneDrive - HT MICRON SEMICONDUTORES S.A\\Documentos\\Pessoal\\resultado_simulacao.txt", "w") as f:
+        with open("/mnt/data/resultado_simulacao.txt", "w") as f:
             f.write(f"Tempo global da simulação: {self.relogio:.2f} minutos\n\n")
             for id, fila in self.filas.items():
                 f.write(f"--- Fila {id} ---\n")
