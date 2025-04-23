@@ -1,137 +1,128 @@
-# simulador.py - estrutura inicial do simulador de eventos discretos
-
-import yaml
-import heapq
 import random
-from dataclasses import dataclass, field
-from typing import List, Dict, Optional
+import heapq
 
-# ===================== CLASSES ===================== #
-
-@dataclass
-class Cliente:
-    id: int
-    tempo_chegada: float
-    tempo_saida: Optional[float] = None
-
-
-@dataclass(order=True)
 class Evento:
-    tempo: float
-    tipo: str  # 'chegada', 'saida'
-    fila_id: int
-    cliente: Cliente = field(compare=False)
+    def __init__(self, tempo, tipo, fila, cliente_id):
+        self.tempo = tempo
+        self.tipo = tipo  # "chegada" ou "saida"
+        self.fila = fila  # Fila 1, 2 ou 3
+        self.cliente_id = cliente_id
 
+    def __lt__(self, other):
+        return self.tempo < other.tempo
 
-@dataclass
 class Fila:
-    id: int
-    servidores: int
-    capacidade: int
-    atendimento: List[float]  # intervalo de atendimento [min, max]
-    roteamento: List[Dict]  # [{'destino': 2, 'probabilidade': 0.5}, ...]
+    def __init__(self, id, servidores, capacidade, tempo_atendimento_func):
+        self.id = id
+        self.servidores = servidores
+        self.capacidade = capacidade
+        self.tempo_atendimento_func = tempo_atendimento_func
+        self.clientes = 0
+        self.em_servico = 0
+        self.tempo_por_estado = {}
+        self.perdas = 0
+        self.ultimo_tempo = 0
 
-    servidores_ocupados: int = 0
-    fila_espera: List[Cliente] = field(default_factory=list)
-    atendendo: List[Cliente] = field(default_factory=list)
-    perdidos: int = 0
+    def atualizar_estado(self, tempo_atual):
+        estado = self.clientes
+        tempo_decorrido = tempo_atual - self.ultimo_tempo
+        self.tempo_por_estado[estado] = self.tempo_por_estado.get(estado, 0) + tempo_decorrido
+        self.ultimo_tempo = tempo_atual
 
-    def chegada(self, cliente: Cliente, tempo: float, agenda: List[Evento]):
-        if self.servidores_ocupados < self.servidores:
-            self.servidores_ocupados += 1
-            self.atendendo.append(cliente)
-            tempo_servico = random.uniform(*self.atendimento)
-            heapq.heappush(agenda, Evento(tempo + tempo_servico, 'saida', self.id, cliente))
-        elif len(self.fila_espera) < self.capacidade:
-            self.fila_espera.append(cliente)
+    def chegada(self, tempo_atual):
+        self.atualizar_estado(tempo_atual)
+        if self.clientes < self.capacidade:
+            self.clientes += 1
+            if self.em_servico < self.servidores:
+                self.em_servico += 1
+                return True  # Será atendido imediatamente
         else:
-            self.perdidos += 1
+            self.perdas += 1
+        return False
 
-    def saida(self, cliente: Cliente, tempo: float, agenda: List[Evento], filas: Dict[int, 'Fila']):
-        self.servidores_ocupados -= 1
-        self.atendendo.remove(cliente)
+    def saida(self, tempo_atual):
+        self.atualizar_estado(tempo_atual)
+        self.clientes -= 1
+        if self.clientes >= self.servidores:
+            return True  # Próximo cliente começa a ser atendido
+        else:
+            self.em_servico -= 1
+            return False
 
-        if self.fila_espera:
-            prox_cliente = self.fila_espera.pop(0)
-            self.servidores_ocupados += 1
-            self.atendendo.append(prox_cliente)
-            tempo_servico = random.uniform(*self.atendimento)
-            heapq.heappush(agenda, Evento(tempo + tempo_servico, 'saida', self.id, prox_cliente))
+class Simulador:
+    def __init__(self):
+        self.relogio = 2.0
+        self.eventos = []
+        self.total_eventos = 0
+        self.max_eventos = 100000
+        self.id_cliente = 0
+        self.resultado = []
 
-        destino = self.definir_roteamento()
-        if destino != 'SAIDA':
-            heapq.heappush(agenda, Evento(tempo, 'chegada', destino, cliente))
+        self.filas = {
+            1: Fila(1, 1, float('inf'), lambda: random.uniform(1, 2)),
+            2: Fila(2, 2, 5, lambda: random.uniform(4, 8)),
+            3: Fila(3, 2, 10, lambda: random.uniform(5, 15))
+        }
 
-    def definir_roteamento(self):
-        rnd = random.random()
-        acumulado = 0
-        for rot in self.roteamento:
-            acumulado += rot['probabilidade']
-            if rnd < acumulado:
-                return rot['destino']
-        return 'SAIDA'
+        heapq.heappush(self.eventos, Evento(self.relogio, "chegada", 1, self.id_cliente))
+        self.id_cliente += 1
 
-# ===================== PARSER YAML ===================== #
+    def agendar(self, evento):
+        heapq.heappush(self.eventos, evento)
 
-def carregar_modelo_yaml(path: str):
-    with open(path, 'r') as f:
-        data = yaml.safe_load(f)
+    def executar(self):
+        while self.total_eventos < self.max_eventos and self.eventos:
+            evento = heapq.heappop(self.eventos)
+            self.relogio = evento.tempo
+            fila = self.filas[evento.fila]
 
-    filas = {}
-    for f in data['filas']:
-        fila = Fila(
-            id=f['id'],
-            servidores=f['servidores'],
-            capacidade=f['capacidade'],
-            atendimento=f['atendimento'],
-            roteamento=f['roteamento']
-        )
-        filas[f['id']] = fila
+            if evento.tipo == "chegada":
+                if fila.chegada(self.relogio):
+                    duracao = fila.tempo_atendimento_func()
+                    self.agendar(Evento(self.relogio + duracao, "saida", evento.fila, evento.cliente_id))
 
-    chegada = data['chegada']
-    return filas, chegada
+                if evento.fila == 1:
+                    intervalo = random.uniform(2, 4)
+                    self.agendar(Evento(self.relogio + intervalo, "chegada", 1, self.id_cliente))
+                    self.id_cliente += 1
 
-# ===================== ESQUELETO DO SIMULADOR ===================== #
+            elif evento.tipo == "saida":
+                proximo = fila.saida(self.relogio)
+                if proximo:
+                    duracao = fila.tempo_atendimento_func()
+                    self.agendar(Evento(self.relogio + duracao, "saida", evento.fila, self.id_cliente))
 
-def rodar_simulacao(arquivo_yaml: str, tempo_max: float = 100):
-    filas, chegada_cfg = carregar_modelo_yaml(arquivo_yaml)
-    agenda = []
-    tempo_atual = 0
-    cliente_id = 0
+                if evento.fila == 1:
+                    destino = random.choices([2, 3], weights=[0.8, 0.2])[0]
+                    self.agendar(Evento(self.relogio, "chegada", destino, self.id_cliente))
+                    self.id_cliente += 1
+                elif evento.fila == 2:
+                    destino = random.choices([1, 3], weights=[0.3, 0.5])[0]
+                    self.agendar(Evento(self.relogio, "chegada", destino, self.id_cliente))
+                    self.id_cliente += 1
+                elif evento.fila == 3:
+                    destino = random.choices([1], weights=[0.7])[0]
+                    self.agendar(Evento(self.relogio, "chegada", destino, self.id_cliente))
+                    self.id_cliente += 1
 
-    # Agendar primeira chegada externa
-    intervalo = random.uniform(*chegada_cfg['intervalo'])
-    cliente = Cliente(id=cliente_id, tempo_chegada=tempo_atual)
-    heapq.heappush(agenda, Evento(tempo_atual + intervalo, 'chegada', chegada_cfg['destino_inicial'], cliente))
-    cliente_id += 1
+            self.total_eventos += 1
 
-    while agenda and tempo_atual < tempo_max:
-        evento = heapq.heappop(agenda)
-        tempo_atual = evento.tempo
-        fila = filas[evento.fila_id]
+        self.gerar_resultado()
 
-        if evento.tipo == 'chegada':
-            fila.chegada(evento.cliente, tempo_atual, agenda)
+    def gerar_resultado(self):
+        with open("C:\\Users\\jeancarlo.gomes\\OneDrive - HT MICRON SEMICONDUTORES S.A\\Documentos\\Pessoal\\resultado_simulacao.txt", "w") as f:
+            f.write(f"Tempo global da simulação: {self.relogio:.2f} minutos\n\n")
+            for id, fila in self.filas.items():
+                f.write(f"--- Fila {id} ---\n")
+                f.write("Distribuição de probabilidades dos estados:\n")
+                total_tempo = sum(fila.tempo_por_estado.values())
+                for estado in sorted(fila.tempo_por_estado):
+                    tempo = fila.tempo_por_estado[estado]
+                    prob = tempo / total_tempo
+                    f.write(f"Estado {estado}: {prob:.4f} ({tempo:.2f} min)\n")
+                f.write(f"Total de perdas: {fila.perdas}\n\n")
 
-            # Agendar próxima chegada externa se for da origem
-            if evento.fila_id == chegada_cfg['destino_inicial']:
-                cliente = Cliente(id=cliente_id, tempo_chegada=tempo_atual)
-                intervalo = random.uniform(*chegada_cfg['intervalo'])
-                heapq.heappush(agenda, Evento(tempo_atual + intervalo, 'chegada', chegada_cfg['destino_inicial'], cliente))
-                cliente_id += 1
-
-        elif evento.tipo == 'saida':
-            fila.saida(evento.cliente, tempo_atual, agenda, filas)
-
-    # Imprimir estatísticas básicas
-    for fila in filas.values():
-        print(f"Fila {fila.id}: Atendidos={len(fila.atendendo)}, Perdidos={fila.perdidos}, Em espera={len(fila.fila_espera)}")
-
-# ===================== EXECUÇÃO DIRETA ===================== #
-
-if __name__ == '__main__':
-    import sys
-    if len(sys.argv) != 2:
-        print("Uso: python simulador.py modelo.yml")
-    else:
-        rodar_simulacao(sys.argv[1])
+# Executar simulador
+if __name__ == "__main__":
+    simulador = Simulador()
+    simulador.executar()
