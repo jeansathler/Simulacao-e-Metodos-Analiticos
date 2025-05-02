@@ -27,7 +27,6 @@ O simulador permite:
 
 ## **Requisitos**
 - Python 3.8 ou superior
-- Bibliotecas necessárias (listadas no arquivo `requirements.txt`)
 
 ---
 
