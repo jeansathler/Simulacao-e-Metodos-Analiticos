@@ -38,3 +38,6 @@ network:
 
 iterations:
   value: 100000
+
+seed:
+  value: 42

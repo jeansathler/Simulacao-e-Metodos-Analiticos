@@ -8,6 +8,7 @@ class Simulation:
         self.iterations = 0
         self.total_time = 0.0
         self.scheduler = None
+        self.seed = 1
 
     class Queue:
         def __init__(self, name: str, servers: int, minService: float, maxService: float, 
@@ -255,14 +256,14 @@ class Simulation:
                     f"Distribution Percent:\n {distribution_percent}\n")
 
     class Scheduler:
-        def __init__(self, name: str):
+        def __init__(self, name: str, seed: int = 1):
             self.name = name
             self.queue_list = []
             self.event_list = []
             self.time = 0.0
             self.iterations = 0
             self.max_iterations = 0
-            self.previous = random.randint(0, (2**32)-1)
+            self.previous = seed
             self.rand_number_generated = 0
 
         class Event:
@@ -325,11 +326,12 @@ class Simulation:
                     queue.process_arrival()
             
             iteration = 0
-            while True:
+            while self.rand_number_generated < self.max_iterations:
                 event = self.next_event()
                 if event is None:
                     break
-
+                
+                
                 self.time = event.time
                 if event.event_type == 'arrival':
                     queue = next((q for q in self.queue_list if q.name == event.target), None)
@@ -342,6 +344,7 @@ class Simulation:
 
                 iteration += 1
 
+            print(self.rand_number_generated)
             for queue in self.queue_list:
                 queue._time = self.time
                 queue.calculate_distribution()
@@ -353,7 +356,7 @@ class Simulation:
 
     def run_simulation(self):
         # Create a Scheduler object
-        self.scheduler = self.Scheduler("Scheduler")
+        self.scheduler = self.Scheduler("Scheduler", self.seed)
         self.scheduler.set_iterations(self.iterations)
 
         # Add the Queue objects to the Scheduler
@@ -426,6 +429,9 @@ class Simulation:
 
         # Get the iterations value from the YAML data
         self.iterations = data.get('iterations', {}).get('value', 1)
+
+        # Get the seed value from the YAML data
+        self.seed = data.get('seed', {}).get('value', 1)
 
     def read_yaml(self, filename: str):
         
